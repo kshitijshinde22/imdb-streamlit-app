@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # ------------------------------
-# Load data
+# Load Data
 # ------------------------------
 @st.cache_data
 def load_data():
@@ -20,16 +20,16 @@ def load_data():
 movies_df = load_data()
 
 # ------------------------------
-# Custom CSS for Dark Theme
+# Custom CSS for dark theme & cool cards
 # ------------------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@400;700&display=swap');
 
-body {
-    font-family: 'Poppins', sans-serif;
+body, .stApp {
     background-color: #121212;
     color: #E0E0E0;
+    font-family: 'Poppins', sans-serif;
 }
 
 h1, h2, h3 {
@@ -40,20 +40,33 @@ h1, h2, h3 {
 input, .stTextInput>div>div>input {
     background-color: #1E1E1E;
     color: #E0E0E0;
-    border-radius: 8px;
-    padding: 8px;
-    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    border: 1px solid #333;
 }
 
 .card {
-    background: #1E1E1E;
-    border-radius: 15px;
-    padding: 20px;
+    background: linear-gradient(145deg, #1e1e1e, #272727);
+    border-radius: 20px;
+    padding: 25px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-    color: #E0E0E0;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.8);
+}
+
+.top-movie {
+    border: 2px solid #FFCC00;
+    background: linear-gradient(145deg, #272727, #1e1e1e);
+}
+
+h4 {
+    color: #FFD700;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -61,7 +74,7 @@ input, .stTextInput>div>div>input {
 # App Header
 # ------------------------------
 st.markdown("<h1 style='text-align: center;'>IMDb Movie Finder</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #B0B0B0;'>Type release year & genre to find the top-rated movie!</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #B0B0B0;'>Search by year & genre for the top movies!</p>", unsafe_allow_html=True)
 st.write("---")
 
 # ------------------------------
@@ -76,7 +89,7 @@ with col2:
 # ------------------------------
 # Search Function
 # ------------------------------
-def find_best_movie(year, genre):
+def find_top_movies(year, genre, top_n=3):
     try:
         year = int(year)
     except:
@@ -84,26 +97,40 @@ def find_best_movie(year, genre):
 
     subset = movies_df[(movies_df['startYear'] == year) & 
                        (movies_df['genres'].str.contains(genre, case=False, na=False))]
-
     if subset.empty:
         return None, f"No {genre} movies found in {year} with at least 1000 votes."
 
-    best = subset.sort_values(by=['averageRating', 'numVotes'], ascending=False).iloc[0]
-    return best, None
+    subset = subset.sort_values(by=['averageRating', 'numVotes'], ascending=False).reset_index()
+    return subset.head(top_n), None
 
 # ------------------------------
 # Show Results
 # ------------------------------
 if year_input and genre_input:
-    movie, error = find_best_movie(year_input, genre_input)
+    top_movies, error = find_top_movies(year_input, genre_input)
     if error:
         st.warning(error)
     else:
+        # Show top 1 prominently
+        main_movie = top_movies.iloc[0]
         st.markdown(f"""
-        <div class="card">
-            <h2>{movie['primaryTitle']} ({int(movie['startYear'])})</h2>
-            <p><b>Genres:</b> {movie['genres']}</p>
-            <p><b>Rating:</b> {movie['averageRating']} ⭐ ({int(movie['numVotes'])} votes)</p>
-            <p><b>Runtime:</b> {movie['runtimeMinutes']} minutes</p>
+        <div class="card top-movie">
+            <h2>{main_movie['primaryTitle']} ({int(main_movie['startYear'])})</h2>
+            <p><b>Genres:</b> {main_movie['genres']}</p>
+            <p><b>Rating:</b> {main_movie['averageRating']} ⭐ ({int(main_movie['numVotes'])} votes)</p>
+            <p><b>Runtime:</b> {main_movie['runtimeMinutes']} minutes</p>
         </div>
         """, unsafe_allow_html=True)
+
+        # Show next top 2 movies
+        if len(top_movies) > 1:
+            st.markdown("<h3 style='color:#FFCC00;'>Other Top Movies:</h3>", unsafe_allow_html=True)
+            for i in range(1, len(top_movies)):
+                movie = top_movies.iloc[i]
+                st.markdown(f"""
+                <div class="card">
+                    <h4>{movie['primaryTitle']} ({int(movie['startYear'])})</h4>
+                    <p><b>Genres:</b> {movie['genres']}</p>
+                    <p><b>Rating:</b> {movie['averageRating']} ⭐ ({int(movie['numVotes'])} votes)</p>
+                </div>
+                """, unsafe_allow_html=True)
